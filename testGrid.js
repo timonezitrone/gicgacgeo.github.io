@@ -26,10 +26,16 @@ googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
     subdomains:['mt0','mt1','mt2','mt3']
 });
 googleSat.addTo(map);
-googleSta = L.tileLayer('http://{s}.tile.stamen.com/terrain-lines/{z}/{x}/{y}.png',{
-    maxZoom: 20
-});
-googleSta.addTo(map);
+// googleSta = L.tileLayer('http://{s}.tile.stamen.com/terrain-lines/{z}/{x}/{y}.png',{
+//     maxZoom: 20
+// });
+// googleSta.addTo(map);
+
+
+
+
+
+
 
 var maxBounds;
 var player = -1;
@@ -56,11 +62,36 @@ var dangerGen = [];
 var potentialGen = [];
 var detMat = [];
 var concreteDanPot = [];
-var playingAgainstAi = true;
+var playingAgainstAi = false;
 var blockedRow = -1;
 var blockedCol = -1;
+var threeInARowA1 = [];
+var threeInARowB1 = [];
+var threeInARowA2 = [];
+var threeInARowB2 = [];
+var threeInARowA3 = [];
+var threeInARowB3 = [];
+var threeInARowA4 = [];
+var threeInARowB4 = [];
+var tiar1 = false;
+var tiar2 = false;
+var tiar3 = false;
+var tiar4 = false;
+var negativeMaxV = false;
+var skipMove = true;
+var timeExpired = false;
+
+var countdownElement = document.getElementById('countdown');
+var time = 10;
+var seconds = time;
+var increasingOpacity = true;
+var opacityInterval;
+var thereIsGlowingCircle = false;
+var glowingCircle;
 
 getGrid(param1, param2, param3, param4, param5, param6, param7);
+
+
 
 
 function distance(point1, point2){
@@ -237,8 +268,8 @@ async function logResult(city){
                 blockedCol = recordCol;
             }
             else{
-                ///////////
-                console.log('gg1')
+                messageElement = document.getElementById("message");
+                messageElement.textContent = "Unfortunately your move is not valid, because your city is located in a field, that is currently blocked for you";
             }
         }
         else if(threeInARow(grid[row][col], row, col)){
@@ -250,8 +281,8 @@ async function logResult(city){
                 blockedCol = recordCol;
             }
             else{
-                console.log('gg')
-                ///////////
+                messageElement = document.getElementById("message");
+                messageElement.textContent = "Unfortunately your move is not valid, because your city is located in a field, that is currently blocked for you";
             }
         }
         else{
@@ -260,8 +291,14 @@ async function logResult(city){
         }
     }
     else{
-        messageElement = document.getElementById("message");
-        messageElement.textContent = "Unfortunately your move is not valid, because your city is located outside of the playing field";
+        if(timeExpired){
+            messageElement = document.getElementById("message");
+            messageElement.textContent = "Unfortunately your time ran out";
+        }
+        else{
+            messageElement = document.getElementById("message");
+            messageElement.textContent = "Unfortunately your move is not valid, because your city is located outside of the playing field";
+        }
     }
     if(canBeLogged){
         var fillColour = 'blue';
@@ -279,6 +316,47 @@ async function logResult(city){
             fillOpacity: 0.3,
             radius: radius * 1000
         }).addTo(map);
+
+
+        if (thereIsGlowingCircle){
+            thereIsGlowingCircle = false;
+            glowingCircle.setStyle({ fillOpacity: 0.3 });
+        }
+        clearTimeout(opacityInterval);
+        glowingCircle = circle;
+        function updateOpacity() {
+            thereIsGlowingCircle = true;
+            var currentOpacity = circle.options.fillOpacity;
+
+            if (increasingOpacity) {
+                currentOpacity += 0.1;
+                if (currentOpacity >= 1) {
+                    currentOpacity = 1;
+                    increasingOpacity = false;
+                }
+            } else {
+                currentOpacity -= 0.1;
+                if (currentOpacity <= 0.0) {
+                    currentOpacity = 0;
+                    increasingOpacity = true;
+                }
+            }
+
+            circle.setStyle({ fillOpacity: currentOpacity });
+        }
+        opacityInterval = setInterval(updateOpacity, 75);
+        setTimeout(function () {
+            clearInterval(opacityInterval);
+            circle.setStyle({ fillOpacity: 0.3 });
+            thereIsGlowingCircle = false;
+        }, 5000);
+
+
+
+
+
+
+
         grid[row][col] = pushGrid;
         gridCircle[row][col] = circle;
     }
@@ -325,27 +403,46 @@ async function logResult(city){
         }
     }
     // playing against AI
-    if(!gameOver){
-        if(player > 0){
-            if(canBeLogged){
-                logPlayersMove(recordRow, recordCol);
-                updateDetMat();
-            }
-            document.getElementById("userInput").disabled = true;
-            await delay(1000);
-            automaticResponse();
-            if(!gameOver){
-                document.getElementById("userInput").disabled = false;
-                var userInput = document.getElementById("userInput");
-                userInput.value = "";
-                userInput.focus();
-            }
+    // if(!gameOver){
+    //     if(player > 0){
+    //         if(canBeLogged){
+    //             logPlayersMove(recordRow, recordCol);
+    //         }
+    //         document.getElementById("userInput").disabled = true;
+    //         await delay(1000);
+    //         automaticResponse();
+    //         if(!gameOver){
+    //             document.getElementById("userInput").disabled = false;
+    //             var userInput = document.getElementById("userInput");
+    //             userInput.value = "";
+    //             userInput.focus();
+    //         }
+    //     }
+    // }
+    /////////////////////
+    if(tieDetector()){
+        if(playingAgainstAi){
+            var container = document.getElementById("c2");
+            var text = 'Nice! You escaped with a draw'
+            container.innerHTML = '<p>' + text + '</p><button onclick="nextGame()">Next Game</button>';
+            gameOver = true;
+        }
+        else{
+            var container = document.getElementById("c2");
+            container.innerHTML = '<p>It is a draw. The game is over</p><button onclick="nextGame()">Next Game</button>';
+            gameOver = true;
         }
     }
-    /////////////////////
     if(gameOver){
         var undoButton = document.getElementById("undoButton");
         undoButton.disabled = true;
+        stopTimer();
+    }
+    else{
+        timerFunction(time);
+        var userInput = document.getElementById("userInput");
+        userInput.value = "";
+        userInput.focus();
     }
     if(!playingAgainstAi){
         if (movesPlayed > 0) {
@@ -630,20 +727,26 @@ function threeInARow(c, i, j){
         var dl2;
         var l2;
         var ul2;
-
+        var bool = false;
         if(i - 1 >= 0){
             u = grid[i-1][j];
             if(c == u){
                 if(i - 2 >= 0){
                     u2 = grid[i-2][j];
                     if(c == u2){
-                        return true;
+                        threeInARowA1 = [i-1,j];
+                        threeInARowB1 = [i-2,j];
+                        tiar1 = true;
+                        bool = true;
                     }
                 }
                 if(i + 1 < latNum){
                     d = grid[i+1][j];
                     if(c == d){
-                        return true;
+                        threeInARowA1 = [i+1,j];
+                        threeInARowB1 = [i-1,j];
+                        tiar1 = true;
+                        bool = true;
                     }
                 }
             }
@@ -654,7 +757,10 @@ function threeInARow(c, i, j){
                 if(i + 2 < latNum){
                     d2 = grid[i+2][j];
                     if(c == d2){
-                        return true;
+                        threeInARowA1 = [i+1,j];
+                        threeInARowB1 = [i+2,j];
+                        tiar1 = true;
+                        bool = true;
                     }
                 }
             }
@@ -666,13 +772,19 @@ function threeInARow(c, i, j){
                 if(j - 2 >= 0){
                     l2 = grid[i][j-2];
                     if(c == l2){
-                        return true;
+                        threeInARowA2 = [i,j-1];
+                        threeInARowB2 = [i,j-2];
+                        tiar2 = true;
+                        bool = true;
                     }
                 }
                 if(j + 1 < lngNum){
                     r = grid[i][j+1];
                     if(c == r){
-                        return true;
+                        threeInARowA2 = [i,j+1];
+                        threeInARowB2 = [i,j-1];
+                        tiar2 = true;
+                        bool = true;
                     }
                 }
             }
@@ -683,7 +795,10 @@ function threeInARow(c, i, j){
                 if(j + 2 < lngNum){
                     r2 = grid[i][j+2];
                     if(c == r2){
-                        return true;
+                        threeInARowA2 = [i,j+1];
+                        threeInARowB2 = [i,j+2];
+                        tiar2 = true;
+                        bool = true;
                     }
                 }
             }
@@ -695,13 +810,19 @@ function threeInARow(c, i, j){
                 if(i - 2 >= 0 && j - 2 >= 0){
                     ul2 = grid[i-2][j-2];
                     if(c == ul2){
-                        return true;
+                        threeInARowA3 = [i-1,j-1];
+                        threeInARowB3 = [i-2,j-2];
+                        tiar3 = true;
+                        bool = true;
                     }
                 }
                 if(i + 1 < latNum && j + 1 < lngNum){
                     dr = grid[i+1][j+1];
                     if(c == dr){
-                        return true;
+                        threeInARowA3 = [i-1,j-1];
+                        threeInARowB3 = [i+1,j+1];
+                        tiar3 = true;
+                        bool = true;
                     }
                 }
             }
@@ -712,7 +833,10 @@ function threeInARow(c, i, j){
                 if(i + 2 < latNum && j + 2 < lngNum){
                     dr2 = grid[i+2][j+2];
                     if(c == dr2){
-                        return true;
+                        threeInARowA3 = [i+1,j+1];
+                        threeInARowB3 = [i+2,j+2];
+                        tiar3 = true;
+                        bool = true;
                     }
                 }
             }
@@ -724,13 +848,19 @@ function threeInARow(c, i, j){
                 if(i - 2 >= 0 && j + 2 < lngNum){
                     ur2 = grid[i-2][j+2];
                     if(c == ur2){
-                        return true;
+                        threeInARowA4 = [i-1,j+1];
+                        threeInARowB4 = [i-2,j+2];
+                        tiar4 = true;
+                        bool = true;
                     }
                 }
                 if(i + 1 < latNum && j - 1 >= 0){
                     dl = grid[i+1][j-1];
                     if(c == dl){
-                        return true;
+                        threeInARowA4 = [i-1,j+1];
+                        threeInARowB4 = [i+1,j-1];
+                        tiar4 = true;
+                        bool = true;
                     }
                 }
             }
@@ -741,13 +871,16 @@ function threeInARow(c, i, j){
                 if(i + 2 < latNum && j - 2 >= 0){
                     dl2 = grid[i+2][j-2];
                     if(c == dl2){
-                        return true;
+                        threeInARowA4 = [i+1,j-1];
+                        threeInARowB4 = [i+2,j-2];
+                        tiar4 = true;
+                        bool = true;
                     }
                 }
             }
         }
     }
-    return false;
+    return bool;
 }
 
 
@@ -1040,6 +1173,7 @@ function undoMove(){
     }
     var userInput = document.getElementById("userInput");
     userInput.focus();
+    timerFunction(time);
 }
 
 function drawVictoryLine(i, j, k, l){
@@ -1065,7 +1199,7 @@ function nextGame() {
     var p5 = 5;
     var p6 = 5;
     var p7 = 4;
-    var url = 'testGrid.html?param1=' + encodeURIComponent(p1) + '&param2=' + encodeURIComponent(p2) + '&param3=' + encodeURIComponent(p3) + '&param4=' + encodeURIComponent(p4) + '&param5=' + encodeURIComponent(p5) + '&param6=' + encodeURIComponent(p6) + '&param7=' + encodeURIComponent(p7);
+    var url = 'index.html?param1=' + encodeURIComponent(p1) + '&param2=' + encodeURIComponent(p2) + '&param3=' + encodeURIComponent(p3) + '&param4=' + encodeURIComponent(p4) + '&param5=' + encodeURIComponent(p5) + '&param6=' + encodeURIComponent(p6) + '&param7=' + encodeURIComponent(p7);
     window.location.href = url;
 }
 
@@ -1493,20 +1627,19 @@ function distanceToMiddle(row, col){
 function getMaxDetMat(){
     var maxI = 0;
     var maxJ = 0;
-    var maxV = -1;
+    var maxV = -10000000;
+    var comp = 0;
     for(var i = 0; i < detMat.length; i++){
         for(var j = 0; j < detMat[i].length; j++){
-            var comp = detMat[i][j];
-            if(comp > maxV){
-                if(availabilityCheck(i, j)){
+            if(availabilityCheck(1, i, j)){
+                comp = detMat[i][j];
+                if(comp > maxV){
                     maxI = i;
                     maxJ = j;
                     maxV = comp;
                 }
-            }
-            else if(comp == maxV){
-                if(distanceToMiddle(i, j) < distanceToMiddle(maxI, maxJ)){
-                    if(availabilityCheck(i, j)){
+                else if(comp == maxV){
+                    if(distanceToMiddle(i, j) < distanceToMiddle(maxI, maxJ)){
                         maxI = i;
                         maxJ = j;
                         maxV = comp;
@@ -1515,22 +1648,37 @@ function getMaxDetMat(){
             }
         }
     }
+    if(maxV < 0){
+        negativeMaxV = true;
+    }
     return [maxI, maxJ];
 }
 
-function availabilityCheck(row, col){
+function availabilityCheck(p, row, col){
     if(row == blockedRow && col == blockedCol){
         return false;
     }
     if(grid[row][col] == 0){
         return true;
     }
-    if(grid[row][col] == 1){
-        return false;
+    if(p == 1){
+        if(grid[row][col] == 1){
+            return false;
+        }
+        if(grid[row][col] == -1){
+            if(threeInARow(-1, row, col)){
+                return true;
+            }
+        }
     }
-    if(grid[row][col] == -1){
-        if(threeInARow(-1, row, col)){
-            return true;
+    if(p == -1){
+        if(grid[row][col] == -1){
+            return false;
+        }
+        if(grid[row][col] == 1){
+            if(threeInARow(1, row, col)){
+                return true;
+            }
         }
     }
     return false;
@@ -1550,16 +1698,22 @@ function aiMove(){
     for(var i = 0; i < data.length; i++){
         if(data[i].lat < latMax && data[i].lat > latMin){
             if(data[i].lng < lngMax && data[i].lng > lngMin){
-                if(data[i].pop > pop){
-                    pop = data[i].pop;
-                    aiChoice = data[i].name;
+                if(!alreadyLogged(data[i].name)){
+                    if(data[i].pop > pop){
+                        pop = data[i].pop;
+                        aiChoice = data[i].name;
+                    }
                 }
             }
         }
     }
-    console.log('aiChoice: ' + aiChoice)
+    if(negativeMaxV){
+        aiChoice = getRandomAvailableCityOutsideGrid();
+    }
     var coords = checkCityTicTacToe(aiChoice);
     logResult(coords);
+    loggedCities.push(aiChoice);
+    negativeMaxV = false;
     return [row, col];
 }
 
@@ -1573,13 +1727,25 @@ function getRandomAvailableCity(){
     return rand;
 }
 
+function getRandomAvailableCityOutsideGrid(){
+    var rand = data[0].name;
+    for(var i = 1; i < data.length; i++){
+        if(!alreadyLogged(data[i].name)){
+            if(data[i].lat > latStart || data[i].lat < latEnd || data[i].lng > lngStart || data[i].lng < lngEnd){
+                return data[i].name;
+            }
+        }
+    }
+    return rand;
+}
+
 function automaticResponse(i, j){
     updateConcreteMatrix();
+    updateDetMat();
     var x = aiMove();
     var row = x[0];
     var col = x[1];
     logAiMove(row, col);
-    updateDetMat();
 }
 
 function updateDetMat(){
@@ -1590,35 +1756,36 @@ function updateDetMat(){
     }
 }
 
-
-
-
-
-
-
-
 function updateConcreteMatrix(){
     for(var i = 0; i < grid.length; i++){
         for(var j = 0; j < grid[i].length; j++){
             concreteDanPot[i][j] = retrieveValueForAllDirections(i, j);
         }
     }
+    for(var i = 0; i < grid.length; i++){
+        for(var j = 0; j < grid[i].length; j++){
+            concreteDanPot[i][j] = concreteDanPot[i][j] + preventSuicide(i, j);
+        }
+    }
 }
 
 function getValueConcreteDanger(x, o){
     if(x == 3){
-        // ausnahme!!!!!!!!!
-        //
-        return 3;
+        if(o == 0){
+            return 1000;
+        }
+        if(o == 1){
+            return 1;
+        }
     }
     if(x == 2){
         if(o == 0){
-            return 2;
+            return 100;
         }
     }
     if(x == 1){
         if(o == 0){
-            return 1;
+            return 10;
         }
     }
     return 0;
@@ -1626,23 +1793,23 @@ function getValueConcreteDanger(x, o){
 
 function getValueConcretePotential(x, o){
     if(x == 3){
-        return 3;
+        return 1000000;
     }
     if(x == 2){
         if(o == 0){
-            return 2;
+            return 120;
         }
         else if(o == 1){
-            return 0.2;
+            return 2;
         }
     }
     if(x == 1){
         if(o == 0){
-            return 1;
+            return 10;
         }
 
         else if(o == 1){
-            return 0.1
+            return 1
         }
     }
     return 0;
@@ -1695,9 +1862,9 @@ function retrieveValueForAllDirections(i, j){
     }
     if(j+1 < lngNum){
         if(j-2 >= 0){
-            var counts = countXandO(grid[i][j], grid[i][j+1], grid[i][j-2], grid[i][j]-1);
+            var counts = countXandO(grid[i][j], grid[i][j+1], grid[i][j-2], grid[i][j-1]);
             var p = getValueConcretePotential(counts[0], counts[1]);
-            var  d = getValueConcreteDanger(counts[1], counts[0]);
+            var d = getValueConcreteDanger(counts[1], counts[0]);
             total = total + d + p;
         }
     }
@@ -1724,7 +1891,7 @@ function retrieveValueForAllDirections(i, j){
     }
     if(i+1 < latNum && j+1 < lngNum){
         if(i-2 >= 0 && j-2 >= 0){
-            var counts = countXandO(grid[i][j], grid[i+1][j+1], grid[i-2][j-2], grid[i-1][j]-1);
+            var counts = countXandO(grid[i][j], grid[i+1][j+1], grid[i-2][j-2], grid[i-1][j-1]);
             var p = getValueConcretePotential(counts[0], counts[1]);
             var  d = getValueConcreteDanger(counts[1], counts[0]);
             total = total + d + p;
@@ -1753,7 +1920,7 @@ function retrieveValueForAllDirections(i, j){
     }
     if(i+1 < latNum && j-1 >= 0){
         if(i-2 >= 0 && j+2 < lngNum){
-            var counts = countXandO(grid[i][j], grid[i+1][j-1], grid[i-2][j+2], grid[i-1][j]+1);
+            var counts = countXandO(grid[i][j], grid[i+1][j-1], grid[i-2][j+2], grid[i-1][j+1]);
             var p = getValueConcretePotential(counts[0], counts[1]);
             var  d = getValueConcreteDanger(counts[1], counts[0]);
             total = total + d + p;
@@ -1765,7 +1932,6 @@ function retrieveValueForAllDirections(i, j){
         var  d = getValueConcreteDanger(counts[1], counts[0]);
         total = total + d + p;
     }
-
     return total;
 }
 
@@ -1797,4 +1963,250 @@ function countXandO(a,b,c,d){
         o++;
     }
     return [x, o];
+}
+
+function preventSuicide(i, j){
+    player = player * (-1);
+    var a1 = 0;
+    var a2 = 0;
+    var a3 = 0;
+    var a4 = 0;
+    var b1 = 0;
+    var b2 = 0;
+    var b3 = 0;
+    var b4 = 0;
+    var suicide = 0;
+    if(threeInARow(1, i, j)){
+        if(tiar1){
+            a1 = retrieveSuicideAllDirections(threeInARowA1[0], threeInARowA1[1]);
+            b1 = retrieveSuicideAllDirections(threeInARowB1[0], threeInARowB1[1]);
+        }
+        if(tiar2){
+            a2 = retrieveSuicideAllDirections(threeInARowA2[0], threeInARowA2[1]);
+            b2 = retrieveSuicideAllDirections(threeInARowB2[0], threeInARowB2[1]);
+        }
+        if(tiar2){
+            a3 = retrieveSuicideAllDirections(threeInARowA3[0], threeInARowA3[1]);
+            b3 = retrieveSuicideAllDirections(threeInARowB3[0], threeInARowB3[1]);
+        }
+        if(tiar2){
+            a4 = retrieveSuicideAllDirections(threeInARowA4[0], threeInARowA4[1]);
+            b4 = retrieveSuicideAllDirections(threeInARowB4[0], threeInARowB4[1]);
+        }
+        var curr = retrieveSuicideAllDirections(i, j);
+        suicide = a1 + b1 + a2 + b2 + a3 + b3 + a4 + b4 + curr/2 - 500;
+    }
+    player = player * (-1);
+    tiar1 = false;
+    tiar2 = false;
+    tiar3 = false;
+    tiar4 = false;
+    threeInARowA4
+    return suicide;
+}
+
+function getSuicideValue(x, o){
+    if(x == 3){
+        return -10000;
+    }
+    if(x == 2){
+        if(o == 1){
+            return -1000;
+        }
+        if(o == 2){
+            return -10;
+        }
+    }
+    return 0;
+}
+
+function retrieveSuicideAllDirections(i, j){
+    var total = 0
+    if(i+3 < latNum){
+        var counts = countXandO(grid[i][j], grid[i+1][j], grid[i+2][j], grid[i+3][j]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+    if(i+2 < latNum){
+        if(i-1 >= 0){
+            var counts = countXandO(grid[i][j], grid[i+1][j], grid[i+2][j], grid[i-1][j]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i+1 < latNum){
+        if(i-2 >= 0){
+            var counts = countXandO(grid[i][j], grid[i+1][j], grid[i-2][j], grid[i-1][j]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i-3 >= 0){
+        var counts = countXandO(grid[i][j], grid[i-1][j], grid[i-2][j], grid[i-3][j]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+
+    if(j+3 < lngNum){
+        var counts = countXandO(grid[i][j], grid[i][j+1], grid[i][j+2], grid[i][j+3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+    if(j+2 < lngNum){
+        if(j-1 >= 0){
+            var counts = countXandO(grid[i][j], grid[i][j+1], grid[i][j+2], grid[i][j-1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(j+1 < lngNum){
+        if(j-2 >= 0){
+            var counts = countXandO(grid[i][j], grid[i][j+1], grid[i][j-2], grid[i][j-1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(j-3 >= 0){
+        var counts = countXandO(grid[i][j], grid[i][j-1], grid[i][j-2], grid[i][j-3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+
+    if(i+3 < latNum && j+3 < lngNum){
+        var counts = countXandO(grid[i][j], grid[i+1][j+1], grid[i+2][j+2], grid[i+3][j+3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+    if(i+2 < latNum && j+2 < lngNum){
+        if(i-1 >= 0 && j-1 >= 0){
+            var counts = countXandO(grid[i][j], grid[i+1][j+1], grid[i+2][j+2], grid[i-1][j-1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i+1 < latNum && j+1 < lngNum){
+        if(i-2 >= 0 && j-2 >= 0){
+            var counts = countXandO(grid[i][j], grid[i+1][j+1], grid[i-2][j-2], grid[i-1][j-1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i-3 >= 0 && j-3 >= 0){
+        var counts = countXandO(grid[i][j], grid[i-1][j-1], grid[i-2][j-2], grid[i-3][j-3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+
+    if(i+3 < latNum && j-3 >= 0){
+        var counts = countXandO(grid[i][j], grid[i+1][j-1], grid[i+2][j-2], grid[i+3][j-3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+    if(i+2 < latNum && j-2 >= 0){
+        if(i-1 >= 0 && j+1 < lngNum){
+            var counts = countXandO(grid[i][j], grid[i+1][j-1], grid[i+2][j-2], grid[i-1][j+1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i+1 < latNum && j-1 >= 0){
+        if(i-2 >= 0 && j+2 < lngNum){
+            var counts = countXandO(grid[i][j], grid[i+1][j-1], grid[i-2][j+2], grid[i-1][j+1]);
+            var d = getSuicideValue(counts[1], counts[0]);
+            total = total + d;
+        }
+    }
+    if(i-3 >= 0 && j+3 < lngNum){
+        var counts = countXandO(grid[i][j], grid[i-1][j+1], grid[i-2][j+2], grid[i-3][j+3]);
+        var d = getSuicideValue(counts[1], counts[0]);
+        total = total + d;
+    }
+    return total;
+}
+
+function tieDetector(){
+    possibleMove = false;
+    for(var i = 0; i < grid.length; i++){
+        for(var j = 0; j < grid[i].length; j++){
+            if(availabilityCheck(player, i , j)){
+                possibleMove = true;
+            }
+        }
+    }
+    var rp = repeatedPosition();
+    if(rp){
+        return true;
+    }
+    else{
+        if(!possibleMove){
+            return true;
+        }
+    }
+    return false;
+}
+
+function repeatedPosition(){
+    if(movesPlayed >= 6){
+        if(keepRecord[movesPlayed-1][0] == 0){
+            if(keepRecord[movesPlayed-2][0] == 0){
+                if(keepRecord[movesPlayed-3][0] == 0){
+                    if(keepRecord[movesPlayed-4][0] == 0){
+                        if(keepRecord[movesPlayed-5][0] == 0){
+                            if(keepRecord[movesPlayed-6][0] == 0){
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function updateCountdown() {
+    if (seconds > 1){
+        countdownElement.textContent = 'Time: ' + seconds + ' seconds';
+        seconds--;
+    }
+   else if(seconds == 1){
+       countdownElement.textContent = 'Time: ' + seconds + ' second';
+       seconds--;
+   }
+
+    else if (seconds <= 0) {
+        clearInterval(timerInterval);
+        countdownElement.textContent = 'Time expired';
+        timeExpiredFunction();
+    }
+}
+if (time >= 0){
+    var timerInterval = setInterval(updateCountdown, 1000);
+}
+
+function timeExpiredFunction(){
+    if (skipMove){
+        timeExpired = true;
+        var c = { lat: 999, lng: 999 };
+        logResult(c);
+    }
+    else{
+        timeExpired = true;
+        var c = { lat: 999, lng: 999 };
+        logResult(c);
+    }
+}
+
+function timerFunction(time){
+    if (time >= 0){
+        seconds = time;
+        clearInterval(timerInterval);
+        updateCountdown();
+        timerInterval = setInterval(updateCountdown, 1000);
+    }
+}
+
+function stopTimer(){
+    clearInterval(timerInterval);
+    countdownElement.textContent = '';
 }
