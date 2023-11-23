@@ -82,7 +82,7 @@ var skipMove = true;
 var timeExpired = false;
 
 var countdownElement = document.getElementById('countdown');
-var time = 10;
+var time = 60;
 var seconds = time;
 var increasingOpacity = true;
 var opacityInterval;
